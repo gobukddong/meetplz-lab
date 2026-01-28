@@ -1,0 +1,53 @@
+---
+alwaysApply: true
+---
+
+---
+description: meetplz 프로젝트의 핵심 PRD, 데이터 흐름, 비즈니스 로직을 정의합니다. 모든 기능 구현 시 이 규칙을 최우선으로 참조해야 합니다.
+globs: **/*.ts, **/*.tsx, **/*.sql
+---
+
+# Project Context: meetplz
+**한 줄 정의**: 나만의 일정은 단단하게 관리하고, 공유는 선택적으로 — 모임과 할 일을 하나의 캘린더에서 관리하는 소셜 생산성 앱.
+
+## 1. 핵심 가치 및 원칙
+- **Personal First**: 개인 일정과 프라이버시가 최우선입니다.
+- **No Friction Social**: 확정된 일정 기반으로 쉽게 참여합니다.
+- **Visual Productivity**: 한 화면(Split View)에서 모든 맥락을 파악합니다.
+
+## 2. 주요 데이터 흐름 (Business Logic)
+다음 흐름을 엄격히 준수하여 구현해야 합니다.
+
+### A. 인증 (Auth)
+- **로그인**: Google OAuth를 사용합니다.
+- **프로필 생성**: 로그인 성공 시 반드시 `profiles` 테이블에 사용자 정보를 upsert 해야 합니다.
+- **보안**: RLS(Row Level Security)를 통해 데이터 접근을 제어합니다.
+
+### B. 개인 할 일 (Personal Tasks)
+- **기본 상태**: 생성 시 `is_public`은 기본적으로 `false`입니다.
+- **공개 전환**: 사용자가 Lock/Unlock 토글 시 `is_public` 상태를 업데이트합니다.
+- **조회 로직**: 
+  - 본인: 모든 Task 조회
+  - 타인: `is_public = true`인 Task만 조회
+
+### C. 모임 참여 (Meeting Join) - Critical
+사용자가 모임에 'Join' 버튼을 누르면 **트랜잭션 성격의 두 가지 작업**이 동시에 발생해야 합니다:
+1. `participants` 테이블에 유저 추가 (중복 방지).
+2. `personal_tasks` 테이블에 해당 모임 내용을 내 일정으로 자동 복사 (`source = meeting`).
+
+### D. AI Briefing
+- **트리거**: Header의 AI 버튼 클릭 시.
+- **캐싱 전략**:
+  1. LocalStorage에서 오늘 날짜의 브리핑 확인.
+  2. 없으면 API 호출 -> DB 조회(오늘 일정 + 공개 할 일) -> LLM 요약.
+  3. 결과를 LocalStorage에 저장하고 타자 효과로 출력.
+
+## 3. 데이터베이스 스키마 요약
+- `profiles`: id(PK), email, name, avatar_url
+- `personal_tasks`: id, user_id, content, due_date, is_public, source(personal/meeting)
+- `meetings`: id, title, description, meeting_at, location, host_id
+- `participants`: meeting_id, user_id, status
+
+## 4. Phase 1 (MVP) 범위 제한
+- 모임 생성 시 날짜/시간은 확정된 상태여야 합니다 (투표 기능 제외).
+- 비로그인 사용자는 서비스 접근이 불가합니다.
