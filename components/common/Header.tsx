@@ -6,7 +6,11 @@ import { ThemeToggle } from "@/components/domain/auth/theme-toggle"
 import { ProfileDropdown } from "@/components/domain/auth/profile-dropdown"
 import { BriefingButton } from "@/components/domain/ai-briefing/briefing-button"
 
-export function Header() {
+interface HeaderProps {
+  user: any // Typed properly in production
+}
+
+export function Header({ user }: HeaderProps) {
   return (
     <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,7 +27,7 @@ export function Header() {
           <div className="flex items-center gap-2">
             <BriefingButton />
             <ThemeToggle />
-            <ProfileDropdown />
+            <ProfileDropdown user={user} />
           </div>
         </div>
       </div>

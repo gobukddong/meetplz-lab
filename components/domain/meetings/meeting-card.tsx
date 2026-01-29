@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CalendarDays, Clock, MapPin, MessageCircle, Heart } from "lucide-react"
+import Link from "next/link"
 import { cn } from "@/lib/utils/cn"
 
 export interface MeetingCardProps {
@@ -21,7 +22,9 @@ export interface MeetingCardProps {
   status: "recruiting" | "confirmed"
   likes?: number
   comments?: number
+  isJoined?: boolean
   onJoin?: (id: string) => void
+  onLeave?: (id: string) => void
 }
 
 export function MeetingCard({
@@ -38,7 +41,9 @@ export function MeetingCard({
   status,
   likes = 0,
   comments = 0,
+  isJoined,
   onJoin,
+  onLeave,
 }: MeetingCardProps) {
   const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(likes)
@@ -48,9 +53,12 @@ export function MeetingCard({
     setLikeCount(liked ? likeCount - 1 : likeCount + 1)
   }
 
-  const handleJoin = () => {
-    if (id && onJoin) {
-      onJoin(id)
+  const handleAction = () => {
+    if (!id) return
+    if (isJoined) {
+      onLeave?.(id)
+    } else {
+      onJoin?.(id)
     }
   }
 
@@ -134,13 +142,27 @@ export function MeetingCard({
             <span className="text-xs">{comments}</span>
           </Button>
         </div>
-        <Button
-          onClick={handleJoin}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground h-8"
-          size="sm"
-        >
-          참여하기
-        </Button>
+        <div className="flex items-center gap-2">
+          {isJoined && (
+            <Link href={`/meetings/${id}/chat`}>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 border-primary/20 hover:bg-primary/5">
+                <MessageCircle className="size-4" />
+                채팅
+              </Button>
+            </Link>
+          )}
+          <Button
+            onClick={handleAction}
+            variant={isJoined ? "outline" : "default"}
+            className={cn(
+              "h-8 transition-colors",
+              isJoined ? "border-primary text-primary hover:bg-primary/10" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+            )}
+            size="sm"
+          >
+            {isJoined ? "참여 취소" : "참여하기"}
+          </Button>
+        </div>
       </div>
     </div>
   )

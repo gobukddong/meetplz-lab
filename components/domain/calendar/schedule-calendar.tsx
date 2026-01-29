@@ -17,7 +17,9 @@ export interface CalendarEvent {
 interface ScheduleCalendarProps {
   events: CalendarEvent[]
   selected?: Date
+  month?: Date
   onSelect?: (date: Date | undefined) => void
+  onMonthChange?: (month: Date) => void
   className?: string
 }
 
@@ -80,6 +82,8 @@ export function ScheduleCalendar({
   events,
   selected,
   onSelect,
+  month,
+  onMonthChange,
   className,
 }: ScheduleCalendarProps) {
   const defaultClassNames = getDefaultClassNames()
@@ -89,6 +93,8 @@ export function ScheduleCalendar({
       mode="single"
       selected={selected}
       onSelect={onSelect}
+      month={month}
+      onMonthChange={onMonthChange}
       showOutsideDays
       locale={ko}
       formatters={{

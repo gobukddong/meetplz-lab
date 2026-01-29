@@ -1,82 +1,60 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { ScheduleCalendar } from "@/components/domain/calendar/schedule-calendar"
 import { TaskList, type Task } from "@/components/domain/tasks/task-list"
 import { AddTaskDialog } from "@/components/domain/tasks/add-task-dialog"
+import { createTask, toggleTaskCompletion, toggleTaskPrivacy } from "@/app/actions/tasks"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 
-const INITIAL_TASKS: (Task & { date: Date })[] = [
-  {
-    id: "1",
-    title: "Technical Interview - Frontend",
-    type: "meeting",
-    isPublic: true,
-    completed: false,
-    date: new Date(2026, 0, 29),
-  },
-  {
-    id: "2",
-    title: "Review candidate portfolios",
-    type: "personal",
-    isPublic: false,
-    completed: false,
-    date: new Date(2026, 0, 29),
-  },
-  {
-    id: "3",
-    title: "Product Design Sync",
-    type: "meeting",
-    isPublic: true,
-    completed: false,
-    date: new Date(2026, 0, 29),
-  },
-  {
-    id: "4",
-    title: "Prepare presentation slides",
-    type: "personal",
-    isPublic: false,
-    completed: true,
-    date: new Date(2026, 0, 28),
-  },
-  {
-    id: "5",
-    title: "Engineering All-Hands",
-    type: "meeting",
-    isPublic: true,
-    completed: false,
-    date: new Date(2026, 0, 30),
-  },
-  {
-    id: "6",
-    title: "Update team documentation",
-    type: "personal",
-    isPublic: false,
-    completed: false,
-    date: new Date(2026, 0, 30),
-  },
-  {
-    id: "7",
-    title: "Sprint Planning",
-    type: "meeting",
-    isPublic: true,
-    completed: false,
-    date: new Date(2026, 0, 31),
-  },
-  {
-    id: "8",
-    title: "Code review backlog",
-    type: "personal",
-    isPublic: false,
-    completed: false,
-    date: new Date(2026, 1, 1),
-  },
-]
+// Helper to map DB tasks to UI tasks
+const mapTaskToUI = (dbTask: any): Task & { date: Date } => ({
+  id: dbTask.id,
+  title: dbTask.content,
+  type: dbTask.source === 'meeting' ? 'meeting' : 'personal',
+  isPublic: dbTask.is_public,
+  completed: dbTask.is_completed,
+  date: new Date(dbTask.due_date),
+})
 
-export function MySchedule() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date(2026, 0, 29))
-  const [tasks, setTasks] = useState<(Task & { date: Date })[]>(INITIAL_TASKS)
+interface MyScheduleProps {
+  initialTasks: any[] // Using any for simplicity with DB types
+}
+
+export function MySchedule({ initialTasks }: MyScheduleProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  
+  const monthParam = searchParams.get("month")
+  const currentMonth = useMemo(() => {
+    if (monthParam) {
+      const [year, month] = monthParam.split("-").map(Number)
+      return new Date(year, month - 1, 1)
+    }
+    return new Date()
+  }, [monthParam])
+
+  // Use DB data or empty
+  const [tasks, setTasks] = useState<(Task & { date: Date })[]>(
+    initialTasks.map(mapTaskToUI)
+  )
+
+  const handleMonthChange = (newMonth: Date) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("month", format(newMonth, "yyyy-MM"))
+    router.push(`${pathname}?${params.toString()}`)
+  }
+  
+  // Update state when initialTasks changes (server revalidation)
+  useEffect(() => {
+    setTasks(initialTasks.map(mapTaskToUI))
+  }, [initialTasks])
+
+  // Default to today
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
   const calendarEvents = useMemo(() => {
     return tasks.map((task) => ({
@@ -92,37 +70,65 @@ export function MySchedule() {
     )
   }, [tasks, selectedDate])
 
-  const handleToggleComplete = (id: string) => {
+  const handleToggleComplete = async (id: string) => {
+    // Optimistic Update
     setTasks((prev) =>
       prev.map((task) =>
         task.id === id ? { ...task, completed: !task.completed } : task
       )
     )
+    const task = tasks.find(t => t.id === id)
+    if (task) {
+        await toggleTaskCompletion(id, !task.completed)
+    }
   }
 
-  const handleTogglePrivacy = (id: string) => {
+  const handleTogglePrivacy = async (id: string) => {
+    // Optimistic Update
     setTasks((prev) =>
       prev.map((task) =>
         task.id === id ? { ...task, isPublic: !task.isPublic } : task
       )
     )
+    const task = tasks.find(t => t.id === id)
+    if (task) {
+        await toggleTaskPrivacy(id, task.isPublic) // toggleTaskPrivacy logic flips it
+    }
   }
 
-  const handleAddTask = (newTask: {
+  const handleAddTask = async (newTask: {
     title: string
-    type: "meeting" | "personal"
+    type: "meeting" | "personal" // 'meeting' type creates are generally via joinMeeting, but manual create is personal
     isPublic: boolean
     date: Date
   }) => {
+    // Optimistic Append
+    const tempId = Date.now().toString()
     const task: Task & { date: Date } = {
-      id: Date.now().toString(),
+      id: tempId,
       title: newTask.title,
-      type: newTask.type,
+      type: "personal", // user added tasks are personal
       isPublic: newTask.isPublic,
       completed: false,
       date: newTask.date,
     }
     setTasks((prev) => [...prev, task])
+
+    const formData = new FormData()
+    formData.append("content", newTask.title)
+    // Format date as YYYY-MM-DD
+    const dateStr = format(newTask.date, "yyyy-MM-dd")
+    formData.append("date", dateStr)
+    if (!newTask.isPublic) formData.append("isPrivate", "on")
+
+    try {
+        await createTask(formData)
+        // Server revalidation in action happens, causing props update -> useEffect will resync with real ID
+    } catch (e) {
+        // Revert on error
+        setTasks((prev) => prev.filter(t => t.id !== tempId))
+        console.error("Failed to create task", e)
+    }
   }
 
   return (
@@ -133,6 +139,8 @@ export function MySchedule() {
         events={calendarEvents}
         selected={selectedDate}
         onSelect={setSelectedDate}
+        month={currentMonth}
+        onMonthChange={handleMonthChange}
       />
       
       <div className="mt-6 flex-1 min-h-0 flex flex-col">
@@ -148,11 +156,11 @@ export function MySchedule() {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-red-500" />
-              모임
+              모임 일정
             </span>
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-muted-foreground" />
-              개인
+              내 일정
             </span>
           </div>
         </div>
@@ -168,3 +176,4 @@ export function MySchedule() {
     </div>
   )
 }
+
