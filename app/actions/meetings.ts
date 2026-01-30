@@ -130,3 +130,64 @@ export async function createMeeting(prevState: CreateMeetingState, formData: For
   revalidatePath("/meetings")
   return { message: null }
 }
+
+export async function updateMeeting(meetingId: string, prevState: CreateMeetingState, formData: FormData): Promise<CreateMeetingState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { message: "Unauthorized" }
+
+  const title = formData.get("title") as string
+  const location = formData.get("location") as string
+  const dateStr = formData.get("date") as string
+  const timeStr = formData.get("time") as string
+  const description = formData.get("description") as string
+
+  if (!title || !location || !dateStr || !timeStr) {
+    return { message: "Please fill in all required fields" }
+  }
+
+  const meetingAt = new Date(`${dateStr}T${timeStr}:00`).toISOString()
+
+  const { error } = await supabase
+    .from("meetings")
+    .update({
+      title,
+      location,
+      meeting_at: meetingAt,
+      description,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", meetingId)
+    .eq("host_id", user.id) // Extra safety check alongside RLS
+
+  if (error) {
+    console.error("Error updating meeting:", error)
+    return { message: "Failed to update meeting" }
+  }
+
+  revalidatePath("/meetings")
+  revalidatePath("/my-schedule")
+  return { message: null }
+}
+
+export async function deleteMeeting(meetingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  const { error } = await supabase
+    .from("meetings")
+    .delete()
+    .eq("id", meetingId)
+    .eq("host_id", user.id) // Extra safety check alongside RLS
+
+  if (error) {
+    console.error("Error deleting meeting:", error)
+    throw new Error("Failed to delete meeting")
+  }
+
+  revalidatePath("/meetings")
+  revalidatePath("/my-schedule")
+}

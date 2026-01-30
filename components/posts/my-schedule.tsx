@@ -6,8 +6,10 @@ import { ko } from "date-fns/locale"
 import { ScheduleCalendar } from "@/components/domain/calendar/schedule-calendar"
 import { TaskList, type Task } from "@/components/domain/tasks/task-list"
 import { AddTaskDialog } from "@/components/domain/tasks/add-task-dialog"
-import { createTask, toggleTaskCompletion, toggleTaskPrivacy } from "@/app/actions/tasks"
-import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { getMyTasks, createTask, toggleTaskCompletion, toggleTaskPrivacy } from "@/app/actions/tasks"
+import { useRouter, useSearchParams } from "next/navigation"
+import { cn } from "@/lib/utils/cn"
+import { LoaderCircle } from "lucide-react"
 
 // Helper to map DB tasks to UI tasks
 const mapTaskToUI = (dbTask: any): Task & { date: Date } => ({
@@ -26,29 +28,54 @@ interface MyScheduleProps {
 export function MySchedule({ initialTasks }: MyScheduleProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const pathname = usePathname()
   
-  const monthParam = searchParams.get("month")
-  const currentMonth = useMemo(() => {
+  // Local month state for instant transition
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => {
+    const monthParam = searchParams.get("month")
     if (monthParam) {
       const [year, month] = monthParam.split("-").map(Number)
       return new Date(year, month - 1, 1)
     }
     return new Date()
-  }, [monthParam])
+  })
 
   // Use DB data or empty
   const [tasks, setTasks] = useState<(Task & { date: Date })[]>(
     initialTasks.map(mapTaskToUI)
   )
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false)
 
+  // Fast UI update + Async Data Sync
   const handleMonthChange = (newMonth: Date) => {
-    const params = new URLSearchParams(searchParams.toString())
+    // 1. Instant UI move
+    setCurrentMonth(newMonth)
+    
+    // 2. Background URL update (non-blocking)
+    const params = new URLSearchParams(window.location.search)
     params.set("month", format(newMonth, "yyyy-MM"))
-    router.push(`${pathname}?${params.toString()}`)
+    window.history.replaceState(null, "", `?${params.toString()}`)
   }
+
+  // Fetch tasks when currentMonth changes (Client-side sync)
+  useEffect(() => {
+    const fetchTasks = async () => {
+        setIsLoadingTasks(true)
+        try {
+            const data = await getMyTasks(format(currentMonth, "yyyy-MM"))
+            setTasks(data.map(mapTaskToUI))
+        } catch (e) {
+            console.error("Failed to fetch tasks for month", e)
+        } finally {
+            setIsLoadingTasks(false)
+        }
+    }
+    
+    // Skip if it's the very first render and we already have initialTasks matching
+    // (Optimization: we could compare currentMonth with initialTasks timestamps)
+    fetchTasks()
+  }, [currentMonth])
   
-  // Update state when initialTasks changes (server revalidation)
+  // Resync if server revalidates (e.g. after adding a task)
   useEffect(() => {
     setTasks(initialTasks.map(mapTaskToUI))
   }, [initialTasks])
@@ -98,16 +125,15 @@ export function MySchedule({ initialTasks }: MyScheduleProps) {
 
   const handleAddTask = async (newTask: {
     title: string
-    type: "meeting" | "personal" // 'meeting' type creates are generally via joinMeeting, but manual create is personal
+    type: "meeting" | "personal"
     isPublic: boolean
     date: Date
   }) => {
-    // Optimistic Append
     const tempId = Date.now().toString()
     const task: Task & { date: Date } = {
       id: tempId,
       title: newTask.title,
-      type: "personal", // user added tasks are personal
+      type: "personal",
       isPublic: newTask.isPublic,
       completed: false,
       date: newTask.date,
@@ -116,32 +142,31 @@ export function MySchedule({ initialTasks }: MyScheduleProps) {
 
     const formData = new FormData()
     formData.append("content", newTask.title)
-    // Format date as YYYY-MM-DD
     const dateStr = format(newTask.date, "yyyy-MM-dd")
     formData.append("date", dateStr)
     if (!newTask.isPublic) formData.append("isPrivate", "on")
 
     try {
         await createTask(formData)
-        // Server revalidation in action happens, causing props update -> useEffect will resync with real ID
     } catch (e) {
-        // Revert on error
         setTasks((prev) => prev.filter(t => t.id !== tempId))
         console.error("Failed to create task", e)
     }
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       <h2 className="text-lg font-semibold text-foreground mb-4">내 일정</h2>
       
-      <ScheduleCalendar
-        events={calendarEvents}
-        selected={selectedDate}
-        onSelect={setSelectedDate}
-        month={currentMonth}
-        onMonthChange={handleMonthChange}
-      />
+      <div className={cn("transition-opacity duration-200 relative", isLoadingTasks ? "opacity-70" : "opacity-100")}>
+        <ScheduleCalendar
+          events={calendarEvents}
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+          month={currentMonth}
+          onMonthChange={handleMonthChange}
+        />
+      </div>
       
       <div className="mt-6 flex-1 min-h-0 flex flex-col">
         <div className="flex items-center justify-between mb-3 flex-shrink-0">

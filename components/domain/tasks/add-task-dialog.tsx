@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Calendar, Users, User } from "lucide-react"
+import { Plus, Calendar, Users, User, LoaderCircle } from "lucide-react"
 
 export interface AddTaskDialogProps {
   selectedDate: Date | undefined
