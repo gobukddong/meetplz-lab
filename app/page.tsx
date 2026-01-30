@@ -1,5 +1,6 @@
 import { MySchedule } from "@/components/posts/my-schedule"
 import { SocialFeed } from "@/components/posts/social-feed"
+import { FriendSidebar } from "@/components/domain/friends/friends-sidebar"
 import { getMyTasks } from "@/app/actions/tasks"
 import { getOpenMeetings } from "@/app/actions/meetings"
 import { getUserProfile } from "@/app/actions/user"

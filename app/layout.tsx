@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: "모임과 할 일을 하나의 캘린더에서 관리하는 생산성 대시보드",
 };
 
+import { SideRail } from "@/components/common/side-rail";
 import { getUserProfile } from "@/app/actions/user";
 
 export default async function RootLayout({

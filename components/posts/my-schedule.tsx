@@ -9,7 +9,8 @@ import { AddTaskDialog } from "@/components/domain/tasks/add-task-dialog"
 import { getMyTasks, createTask, toggleTaskCompletion, toggleTaskPrivacy } from "@/app/actions/tasks"
 import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils/cn"
-import { LoaderCircle } from "lucide-react"
+import { LoaderCircle, Users, ChevronDown, ChevronUp } from "lucide-react"
+import { FriendSidebar } from "@/components/domain/friends/friends-sidebar"
 
 // Helper to map DB tasks to UI tasks
 const mapTaskToUI = (dbTask: any): Task & { date: Date } => ({

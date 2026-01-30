@@ -20,6 +20,7 @@ interface SocialFeedProps {
 
 const mapMeetingToUI = (m: any) => ({
   id: m.id,
+  host_id: m.host_id,
   title: m.title,
   description: m.description,
   date: new Date(m.meeting_at).toLocaleDateString(), // simplified
@@ -107,6 +108,7 @@ export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
               likes={meeting.likes}
               comments={meeting.comments}
               isJoined={meeting.isJoined}
+              isHost={user?.id === meeting.host_id}
               onJoin={handleJoin}
               onLeave={handleLeave}
             />

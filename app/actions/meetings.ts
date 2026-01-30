@@ -25,7 +25,7 @@ export async function getOpenMeetings() {
       host:profiles!host_id(name, avatar_url),
       participants(count),
       is_participant:participants(user_id),
-      comments:comments!meeting_id(count)
+      comments(count)
     `)
     .eq("status", "recruiting")
     .order("created_at", { ascending: false })
@@ -131,11 +131,36 @@ export async function createMeeting(prevState: CreateMeetingState, formData: For
   return { message: null }
 }
 
-export async function updateMeeting(meetingId: string, prevState: CreateMeetingState, formData: FormData): Promise<CreateMeetingState> {
+export async function deleteMeeting(meetingId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return { message: "Unauthorized" }
+  if (!user) {
+    throw new Error("Unauthorized")
+  }
+
+  const { error } = await supabase
+    .from("meetings")
+    .delete()
+    .eq("id", meetingId)
+    .eq("host_id", user.id)
+
+  if (error) {
+    console.error("Error deleting meeting:", error)
+    throw new Error("Failed to delete meeting")
+  }
+
+  revalidatePath("/meetings")
+  revalidatePath("/")
+}
+
+export async function updateMeeting(meetingId: string, formData: FormData): Promise<CreateMeetingState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { message: "Unauthorized" }
+  }
 
   const title = formData.get("title") as string
   const location = formData.get("location") as string
@@ -155,11 +180,10 @@ export async function updateMeeting(meetingId: string, prevState: CreateMeetingS
       title,
       location,
       meeting_at: meetingAt,
-      description,
-      updated_at: new Date().toISOString()
+      description
     })
     .eq("id", meetingId)
-    .eq("host_id", user.id) // Extra safety check alongside RLS
+    .eq("host_id", user.id)
 
   if (error) {
     console.error("Error updating meeting:", error)
@@ -167,27 +191,6 @@ export async function updateMeeting(meetingId: string, prevState: CreateMeetingS
   }
 
   revalidatePath("/meetings")
-  revalidatePath("/my-schedule")
+  revalidatePath("/")
   return { message: null }
-}
-
-export async function deleteMeeting(meetingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return
-
-  const { error } = await supabase
-    .from("meetings")
-    .delete()
-    .eq("id", meetingId)
-    .eq("host_id", user.id) // Extra safety check alongside RLS
-
-  if (error) {
-    console.error("Error deleting meeting:", error)
-    throw new Error("Failed to delete meeting")
-  }
-
-  revalidatePath("/meetings")
-  revalidatePath("/my-schedule")
 }
