@@ -1,122 +1,97 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { MeetingCard } from "@/components/domain/meetings/meeting-card"
 import { CreatePost } from "@/components/domain/meetings/create-post"
+import { joinMeeting, leaveMeeting } from "@/app/actions/meetings"
+import { useRouter } from "next/navigation"
 
-const MOCK_MEETINGS = [
-  {
-    id: "1",
-    title: "Gangnam Dinner Party",
-    description: "Let's grab some Korean BBQ and catch up! Everyone is welcome.",
-    date: "May 25",
-    time: "19:00",
-    location: "Gangnam, Seoul",
-    hostName: "Sarah Chen",
-    hostAvatar: "",
-    hostInitials: "SC",
-    timePosted: "2 hours ago",
-    status: "recruiting" as const,
-    likes: 12,
-    comments: 5,
-  },
-  {
-    id: "2",
-    title: "Tech Startup Networking",
-    description: "Monthly meetup for founders and developers in Seoul. Share your projects!",
-    date: "May 26",
-    time: "18:30",
-    location: "Hongdae Cafe District",
-    hostName: "Mike Johnson",
-    hostAvatar: "",
-    hostInitials: "MJ",
-    timePosted: "5 hours ago",
-    status: "recruiting" as const,
-    likes: 24,
-    comments: 8,
-  },
-  {
-    id: "3",
-    title: "Frontend Developers Meetup",
-    description: "React, Vue, Svelte - let's discuss the latest trends in frontend development.",
-    date: "May 27",
-    time: "19:00",
-    location: "WeWork Samseong",
-    hostName: "Alex Rivera",
-    hostAvatar: "",
-    hostInitials: "AR",
-    timePosted: "1 day ago",
-    status: "confirmed" as const,
-    likes: 45,
-    comments: 12,
-  },
-  {
-    id: "4",
-    title: "Product Design Workshop",
-    description: "Hands-on workshop covering Figma tips and design systems.",
-    date: "May 28",
-    time: "14:00",
-    location: "Design Hub Itaewon",
-    hostName: "Emma Wilson",
-    hostAvatar: "",
-    hostInitials: "EW",
-    timePosted: "1 day ago",
-    status: "recruiting" as const,
-    likes: 18,
-    comments: 3,
-  },
-  {
-    id: "5",
-    title: "Weekend Brunch Club",
-    description: "Casual brunch with great food and better company.",
-    date: "May 29",
-    time: "11:00",
-    location: "Seongsu Rooftop",
-    hostName: "David Kim",
-    hostAvatar: "",
-    hostInitials: "DK",
-    timePosted: "2 days ago",
-    status: "confirmed" as const,
-    likes: 32,
-    comments: 7,
-  },
-  {
-    id: "6",
-    title: "AI & ML Study Group",
-    description: "Weekly study session covering machine learning fundamentals.",
-    date: "May 30",
-    time: "20:00",
-    location: "Google Campus Seoul",
-    hostName: "Lisa Park",
-    hostAvatar: "",
-    hostInitials: "LP",
-    timePosted: "3 days ago",
-    status: "recruiting" as const,
-    likes: 56,
-    comments: 15,
-  },
-]
+interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  avatar_url: string | null
+}
 
-export function SocialFeed() {
-  const handleJoin = (meetingId: string) => {
-    // TODO: Implement join meeting logic
-    // According to FLOW.md: Join → Insert participants → Create calendar task
-    console.log("Joining meeting:", meetingId)
+interface SocialFeedProps {
+  initialMeetings: any[]
+  user: UserProfile | null
+}
+
+const mapMeetingToUI = (m: any) => ({
+  id: m.id,
+  host_id: m.host_id,
+  title: m.title,
+  description: m.description,
+  date: new Date(m.meeting_at).toLocaleDateString(), // simplified
+  time: new Date(m.meeting_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  location: m.location,
+  hostName: m.host?.name || "Unknown",
+  hostAvatar: m.host?.avatar_url || "",
+  hostInitials: m.host?.name ? m.host.name.substring(0, 2) : "??",
+  timePosted: new Date(m.created_at).toLocaleDateString(),
+  status: m.status,
+  likes: 0, // Not in DB yet
+  comments: m.comments ? m.comments[0]?.count : 0,
+  participantCount: m.participants ? m.participants[0]?.count : 0,
+  isJoined: m.isJoined
+})
+
+export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
+  const [meetings, setMeetings] = useState<any[]>(initialMeetings.map(mapMeetingToUI))
+
+  useEffect(() => {
+    setMeetings(initialMeetings.map(mapMeetingToUI))
+  }, [initialMeetings])
+
+  const handleJoin = async (meetingId: string) => {
+    // Optimistic Update
+    setMeetings(prev => prev.map(m => 
+      m.id === meetingId ? { ...m, isJoined: true, participantCount: m.participantCount + 1 } : m
+    ))
+    
+    try {
+      await joinMeeting(meetingId)
+    } catch (error) {
+      // Revert on error
+      setMeetings(prev => prev.map(m => 
+        m.id === meetingId ? { ...m, isJoined: false, participantCount: m.participantCount - 1 } : m
+      ))
+      console.error("Failed to join meeting:", error)
+    }
+  }
+
+  const handleLeave = async (meetingId: string) => {
+    // Optimistic Update
+    setMeetings(prev => prev.map(m => 
+      m.id === meetingId ? { ...m, isJoined: false, participantCount: m.participantCount - 1 } : m
+    ))
+
+    try {
+      await leaveMeeting(meetingId)
+    } catch (error) {
+      // Revert on error
+      setMeetings(prev => prev.map(m => 
+        m.id === meetingId ? { ...m, isJoined: true, participantCount: m.participantCount + 1 } : m
+      ))
+      console.error("Failed to leave meeting:", error)
+    }
   }
 
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-foreground">모집 중인 모임</h2>
-        <span className="text-xs text-muted-foreground">{MOCK_MEETINGS.length}개</span>
+        <span className="text-xs text-muted-foreground">{meetings.length}개</span>
       </div>
       
       <div className="mb-4 flex-shrink-0">
-        <CreatePost />
+        <CreatePost user={user} />
       </div>
       
       <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
         <div className="space-y-3 pb-4">
-          {MOCK_MEETINGS.map((meeting) => (
+          {meetings.map((meeting) => (
             <MeetingCard
               key={meeting.id}
               id={meeting.id}
@@ -132,11 +107,20 @@ export function SocialFeed() {
               status={meeting.status}
               likes={meeting.likes}
               comments={meeting.comments}
+              isJoined={meeting.isJoined}
+              isHost={user?.id === meeting.host_id}
               onJoin={handleJoin}
+              onLeave={handleLeave}
             />
           ))}
+          {meetings.length === 0 && (
+            <div className="text-center text-muted-foreground py-10">
+              No active meetings found. Be the first to create one!
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
+

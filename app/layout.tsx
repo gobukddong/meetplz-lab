@@ -16,15 +16,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "meetplz - 생산성 대시보드",
+  title: "meetplz",
   description: "모임과 할 일을 하나의 캘린더에서 관리하는 생산성 대시보드",
 };
 
-export default function RootLayout({
+import { SideRail } from "@/components/common/side-rail";
+import { getUserProfile } from "@/app/actions/user";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getUserProfile();
+
   return (
     <html lang="ko" suppressHydrationWarning>
       <body
@@ -37,7 +42,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="flex flex-col min-h-screen">
-            <Header />
+            <Header user={user} />
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
