@@ -15,10 +15,10 @@ export interface Task {
 
 interface TaskListProps {
   tasks: Task[]
-  onToggleComplete: (id: string) => void
-  onTogglePrivacy: (id: string) => void
-  onEdit: (task: Task) => void
-  onDelete: (id: string) => void
+  onToggleComplete?: (id: string) => void
+  onTogglePrivacy?: (id: string) => void
+  onEdit?: (task: Task) => void
+  onDelete?: (id: string) => void
 }
 
 export function TaskList({ tasks, onToggleComplete, onTogglePrivacy, onEdit, onDelete }: TaskListProps) {
@@ -42,7 +42,8 @@ export function TaskList({ tasks, onToggleComplete, onTogglePrivacy, onEdit, onD
           >
             <Checkbox
               checked={task.completed}
-              onCheckedChange={() => onToggleComplete(task.id)}
+              onCheckedChange={onToggleComplete ? () => onToggleComplete(task.id) : undefined}
+              disabled={!onToggleComplete}
               className={cn(
                 "data-[state=checked]:border-primary",
                 task.type === "meeting" ? "data-[state=checked]:bg-rose-500 border-rose-500/30" : "data-[state=checked]:bg-primary"
@@ -58,36 +59,42 @@ export function TaskList({ tasks, onToggleComplete, onTogglePrivacy, onEdit, onD
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onEdit(task)}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label="Edit task"
-              >
-                <Pencil className="size-4" />
-              </button>
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={() => onEdit(task)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  aria-label="Edit task"
+                >
+                  <Pencil className="size-4" />
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => onDelete(task.id)}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                aria-label="Delete task"
-              >
-                <Trash2 className="size-4" />
-              </button>
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(task.id)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                  aria-label="Delete task"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => onTogglePrivacy(task.id)}
-                className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label={task.isPublic ? "Make private" : "Make public"}
-              >
-                {task.isPublic ? (
-                  <LockOpen className="size-4 scale-x-[1]" />
-                ) : (
-                  <Lock className="size-4" />
-                )}
-              </button>
+              {onTogglePrivacy && (
+                <button
+                  type="button"
+                  onClick={() => onTogglePrivacy(task.id)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  aria-label={task.isPublic ? "Make private" : "Make public"}
+                >
+                  {task.isPublic ? (
+                    <LockOpen className="size-4 scale-x-[1]" />
+                  ) : (
+                    <Lock className="size-4" />
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ))

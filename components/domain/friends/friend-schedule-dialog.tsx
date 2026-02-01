@@ -104,8 +104,6 @@ export function FriendScheduleDialog({ friend, open, onOpenChange }: FriendSched
                 <div className="p-4 pt-2 pb-6">
                     <TaskList
                         tasks={filteredTasks}
-                        onToggleComplete={() => {}} // Read-only
-                        onTogglePrivacy={() => {}} // Read-only
                     />
                 </div>
             </div>
