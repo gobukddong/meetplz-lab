@@ -17,7 +17,7 @@ export function BriefingButton() {
         className="gap-1.5 text-muted-foreground hover:text-foreground"
       >
         <Sparkles className="size-4" />
-        <span className="hidden sm:inline">AI Briefing</span>
+        <span className="hidden sm:inline">AI 브리핑</span>
       </Button>
       <BriefingDialog open={open} onOpenChange={setOpen} />
     </>

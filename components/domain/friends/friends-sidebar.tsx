@@ -9,7 +9,7 @@ import {
   getPendingRequests, 
   acceptFriendRequest, 
   deleteFriend 
-} from "@/app/actions/friends"
+} from "@/lib/actions/friends"
 import { 
   Users, 
   UserPlus, 
@@ -17,7 +17,9 @@ import {
   X, 
   Loader2, 
   ChevronRight,
-  MoreVertical
+  MoreVertical,
+  Calendar,
+  MessageSquare
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -25,13 +27,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { DMChatDialog } from "./dm-chat-dialog"
+import { FriendScheduleDialog } from "./friend-schedule-dialog"
 import { cn } from "@/lib/utils/cn"
+import { usePresence } from "@/components/providers/presence-provider"
 
-export function FriendSidebar() {
+interface FriendSidebarProps {
+  user: any
+}
+
+export function FriendSidebar({ user }: FriendSidebarProps) {
+  const [selectedFriend, setSelectedFriend] = useState<any>(null)
+  const [scheduleFriend, setScheduleFriend] = useState<any>(null)
+  const [activeActionFriend, setActiveActionFriend] = useState<any>(null)
+  const [activeActionIndex, setActiveActionIndex] = useState<number>(-1)
   const [friends, setFriends] = useState<any[]>([])
   const [pending, setPending] = useState<{ incoming: any[], outgoing: any[] }>({ incoming: [], outgoing: [] })
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState<string | null>(null)
+  const { onlineUsers } = usePresence()
 
   const fetchData = async () => {
     setIsLoading(true)
@@ -71,12 +85,59 @@ export function FriendSidebar() {
     }
   }
 
+  const handleFriendClick = (friend: any, index: number) => {
+    if (activeActionFriend?.id === friend.id) {
+        setActiveActionFriend(null)
+        setActiveActionIndex(-1)
+    } else {
+        setActiveActionFriend(friend)
+        setActiveActionIndex(index)
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full bg-transparent overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-0 space-y-6 no-scrollbar">
+    <div className="flex flex-col h-full bg-transparent overflow-visible relative">
+      <div className="flex-1 overflow-y-auto p-0 space-y-6 no-scrollbar overflow-x-visible">
+        {/* Action Panel (Flyout - Appears to the LEFT) */}
+        <div 
+          className={cn(
+            "absolute right-[calc(100%+12px)] w-36 bg-white dark:bg-card border border-border shadow-[-10px_0_30px_rgba(0,0,0,0.12)] dark:shadow-[-10px_0_30px_rgba(0,0,0,0.3)] rounded-2xl py-2 px-1 flex flex-col gap-1 transition-all duration-300 ease-out z-[100]",
+            activeActionFriend ? "opacity-100 scale-100 -translate-x-2" : "opacity-0 scale-95 translate-x-2 pointer-events-none"
+          )}
+          style={{ 
+            top: activeActionIndex !== -1 ? `${140 + activeActionIndex * 60}px` : "50%",
+          }}
+        >
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 py-1.5 truncate border-b border-border/50 mb-1">
+            {activeActionFriend?.name}
+          </p>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2.5 h-10 text-[13px] font-medium hover:bg-primary/10 hover:text-primary transition-all rounded-xl"
+            onClick={() => {
+              setSelectedFriend(activeActionFriend)
+              setActiveActionFriend(null)
+            }}
+          >
+            <MessageSquare className="size-4" />
+            채팅하기
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-2.5 h-10 text-[13px] font-medium hover:bg-primary/10 hover:text-primary transition-all rounded-xl"
+            onClick={() => {
+              setScheduleFriend(activeActionFriend)
+              setActiveActionFriend(null)
+            }}
+          >
+            <Calendar className="size-4" />
+            일정보기
+          </Button>
+        </div>
+
         {/* Pending Requests */}
         {pending.incoming.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 px-1">
             <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
               친구 요청 ({pending.incoming.length})
             </h4>
@@ -117,7 +178,7 @@ export function FriendSidebar() {
         )}
 
         {/* Friend List */}
-        <div className="space-y-3">
+        <div className="space-y-3 px-1">
           <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
             친구 ({friends.length})
           </h4>
@@ -129,43 +190,35 @@ export function FriendSidebar() {
             </div>
           ) : friends.length > 0 ? (
             <div className="space-y-1">
-              {friends.map((friend) => (
-                <div key={friend.id} className="group flex items-center justify-between gap-2 p-2 rounded-xl transition-all hover:bg-muted/50">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="relative">
-                      <Avatar className="size-10 border border-border/50">
-                        <AvatarImage src={friend.avatar_url} />
-                        <AvatarFallback>{friend.name?.substring(0, 2)}</AvatarFallback>
-                      </Avatar>
-                      <span className="absolute bottom-0 right-0 size-2.5 bg-emerald-500 border-2 border-background rounded-full" />
+              {friends.map((friend, index) => (
+                <div 
+                    key={friend.id} 
+                    className={cn(
+                        "group flex items-center justify-between gap-2 p-2 rounded-xl transition-all cursor-pointer border border-transparent",
+                        activeActionFriend?.id === friend.id 
+                            ? "bg-primary/10 border-primary/20 scale-[1.02]" 
+                            : "hover:bg-muted/50 hover:border-border/50"
+                    )}
+                    onClick={() => handleFriendClick(friend, index)}
+                >
+                    <div className="flex items-center gap-3 overflow-hidden flex-1">
+                      <div className="relative">
+                        <Avatar className="size-10 border border-border/50">
+                          <AvatarImage src={friend.avatar_url} />
+                          <AvatarFallback>{friend.name?.substring(0, 2)}</AvatarFallback>
+                        </Avatar>
+                        <span className={cn(
+                          "absolute bottom-0 right-0 size-2.5 border-2 border-background rounded-full",
+                          onlineUsers[friend.id] ? "bg-emerald-500" : "bg-slate-400"
+                        )} />
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <span className={cn(
+                            "text-sm font-medium truncate transition-colors",
+                            activeActionFriend?.id === friend.id ? "text-primary" : "text-foreground/80 group-hover:text-foreground"
+                        )}>{friend.name}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-medium truncate group-hover:text-primary transition-colors">{friend.name}</span>
-                      <span className="text-[10px] text-muted-foreground truncate">{friend.email}</span>
-                    </div>
-                  </div>
-                  
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="size-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem className="text-sm">
-                        프로필 보기
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-sm">
-                        채팅하기
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        className="text-sm text-destructive focus:text-destructive"
-                        onClick={() => handleDelete(friend.requestId)}
-                      >
-                        친구 삭제
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
               ))}
             </div>
@@ -190,6 +243,19 @@ export function FriendSidebar() {
           모임에 친구 초대하기
         </Button>
       </div>
+
+      <FriendScheduleDialog
+        friend={scheduleFriend}
+        open={!!scheduleFriend}
+        onOpenChange={(open) => !open && setScheduleFriend(null)}
+      />
+
+      <DMChatDialog
+        friend={selectedFriend}
+        open={!!selectedFriend}
+        onOpenChange={(open) => !open && setSelectedFriend(null)}
+        currentUserId={user?.id}
+      />
     </div>
   )
 }

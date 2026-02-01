@@ -3,12 +3,24 @@
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useSearchParams } from "next/navigation"
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 
 function LoginContent() {
   const [isLoading, setIsLoading] = useState(false)
   const searchParams = useSearchParams()
   const next = searchParams.get("next") || "/"
+
+  const [isReturning, setIsReturning] = useState(false)
+
+  useEffect(() => {
+    // Check if user has visited before
+    const hasVisited = localStorage.getItem("has_visited_meetplz")
+    if (hasVisited) {
+      setIsReturning(true)
+    } else {
+      localStorage.setItem("has_visited_meetplz", "true")
+    }
+  }, [])
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)
@@ -27,17 +39,19 @@ function LoginContent() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-sm space-y-6 p-4">
+    <div className="mx-auto w-full max-w-sm space-y-6 p-4 pt-12">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">Welcome Back</h1>
-        <p className="text-sm text-muted-foreground">
-          Sign in to access your meetings and tasks
+        <h1 className="text-3xl font-bold tracking-tight">
+          {isReturning ? "반갑습니다!" : "환영합니다!"}
+        </h1>
+        <p className="text-sm text-muted-foreground font-medium">
+          로그인해서 당신의 일정을 조율해보세요!
         </p>
       </div>
       
       <Button 
         variant="outline" 
-        className="w-full flex items-center justify-center gap-2 h-11"
+        className="w-full flex items-center justify-center gap-3 h-12 text-sm font-semibold rounded-2xl shadow-sm hover:shadow-md transition-all border-border/60"
         onClick={handleGoogleLogin}
         disabled={isLoading}
       >
@@ -63,7 +77,7 @@ function LoginContent() {
             />
           </svg>
         )}
-        Sign in with Google
+        구글로 로그인하기
       </Button>
     </div>
   )

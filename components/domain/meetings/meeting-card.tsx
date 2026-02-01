@@ -4,11 +4,19 @@ import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, Clock, MapPin, MessageCircle, Heart, Trash2, Loader2 } from "lucide-react"
+import { CalendarDays, Clock, MapPin, MessageCircle, Heart, Trash2, Loader2, Users } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils/cn"
 import { EditMeetingDialog } from "./edit-meeting-dialog"
-import { deleteMeeting } from "@/app/actions/meetings"
+import { joinMeeting, leaveMeeting, deleteMeeting } from "@/lib/actions/meetings"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
 
 export interface MeetingCardProps {
   id?: string
@@ -21,13 +29,16 @@ export interface MeetingCardProps {
   hostAvatar: string
   hostInitials: string
   timePosted: string
-  status: "recruiting" | "confirmed"
-  likes?: number
-  comments?: number
+  status: "recruiting" | "confirmed" | "completed"
+  participantCount?: number
+  maxParticipants?: number
+  recruitmentDeadline?: string
   isJoined?: boolean
   isHost?: boolean
   onJoin?: (id: string) => void
   onLeave?: (id: string) => void
+  rawMeetingAt?: string
+  rawMeetingEndAt?: string | null
 }
 
 export function MeetingCard({
@@ -42,21 +53,24 @@ export function MeetingCard({
   hostInitials,
   timePosted,
   status,
-  likes = 0,
-  comments = 0,
+  participantCount = 0,
+  maxParticipants,
+  recruitmentDeadline,
+  endTime,
   isJoined,
   isHost,
+  rawMeetingAt,
+  rawMeetingEndAt,
   onJoin,
   onLeave,
-}: MeetingCardProps) {
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(likes)
+}: MeetingCardProps & { endTime?: string | null }) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  const handleLike = () => {
-    setLiked(!liked)
-    setLikeCount(liked ? likeCount - 1 : likeCount + 1)
-  }
+  const isDeadlinePassed = recruitmentDeadline ? new Date(recruitmentDeadline) < new Date() : false
+  const isFull = maxParticipants ? participantCount >= maxParticipants : false
+  const isScheduled = rawMeetingAt ? new Date(rawMeetingAt) > new Date() : false
+  const isCompleted = status === "completed" || isDeadlinePassed || (isFull && !isJoined)
 
   const handleAction = () => {
     if (!id) return
@@ -69,9 +83,8 @@ export function MeetingCard({
 
   const handleDelete = async () => {
     if (!id) return
-    if (!confirm("정말 이 모임을 삭제하시겠습니까?")) return
-
     setIsDeleting(true)
+    setShowDeleteConfirm(false)
     try {
       await deleteMeeting(id)
     } catch (error) {
@@ -82,15 +95,11 @@ export function MeetingCard({
   }
 
   return (
-    <div className="group rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/50 relative overflow-hidden">
-      {/* Background decoration for host */}
-      {isHost && (
-        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 -mr-8 -mt-8 rotate-45 pointer-events-none" />
-      )}
+    <div className="group rounded-2xl bg-card p-4 shadow-[0_12px_25px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_25px_rgba(255,255,255,0.08)] transition-all hover:bg-muted/50 relative overflow-hidden cursor-pointer">
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Avatar className="size-10 ring-2 ring-primary/20">
+        <Avatar className="size-10 ring-2 ring-primary/20 group-hover:scale-105 transition-transform">
           <AvatarImage src={hostAvatar || "/placeholder.svg"} alt={hostName} />
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
             {hostInitials}
@@ -100,20 +109,26 @@ export function MeetingCard({
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground">{hostName}</p>
             {isHost && (
-              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-primary/20 text-primary border-none">방장</Badge>
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-primary/20 text-primary border-none">내 모임</Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground">{timePosted}</p>
         </div>
         <Badge
-          variant={status === "recruiting" ? "default" : "secondary"}
+          variant={isCompleted || isScheduled ? "secondary" : "default"}
           className={cn(
-            status === "recruiting"
+            !isCompleted && !isScheduled
               ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-              : ""
+              : "bg-muted text-muted-foreground"
           )}
         >
-          {status === "recruiting" ? "모집 중" : "확정"}
+          {isCompleted 
+            ? "모집 완료" 
+            : isScheduled 
+              ? "모집 예정" 
+              : status === "confirmed" 
+                ? "확정" 
+                : "모집 중"}
         </Badge>
       </div>
 
@@ -130,20 +145,22 @@ export function MeetingCard({
       </div>
 
       {/* Date/Time Box */}
-      <div className="mt-4 rounded-lg bg-primary/10 border border-primary/20 p-3">
+      <div className="mt-4 rounded-xl bg-card border border-border shadow-md p-3">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 text-primary">
-            <CalendarDays className="size-4" />
-            <span className="text-sm font-medium">{date}</span>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <CalendarDays className="size-4 text-primary" />
+            <span className="text-sm font-semibold">{date}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-primary">
-            <Clock className="size-4" />
-            <span className="text-sm font-medium">{time}</span>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <Clock className="size-4 text-primary" />
+            <span className="text-sm font-semibold">
+              {time}{endTime ? ` ~ ${endTime}` : ""}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground mt-2">
-          <MapPin className="size-4" />
-          <span className="text-sm">{location}</span>
+        <div className="flex items-center gap-1.5 text-foreground/80 mt-2">
+          <MapPin className="size-4 text-primary" />
+          <span className="text-sm font-medium">{location}</span>
         </div>
       </div>
 
@@ -157,45 +174,59 @@ export function MeetingCard({
                   id: id || "", 
                   title, 
                   description: description || "", 
-                  date, 
-                  time, 
-                  location 
+                  date: rawMeetingAt || "", 
+                  time: rawMeetingAt || "", 
+                  location,
+                  maxParticipants,
+                  recruitmentDeadline,
+                  meeting_end_at: rawMeetingEndAt
                 }} 
               />
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="h-8 gap-1.5 border-red-500/20 text-red-500 hover:bg-red-500/10 hover:text-red-600"
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 disabled={isDeleting}
               >
                 {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 삭제
               </Button>
+
+              <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogContent className="sm:max-w-[400px] border-border bg-card">
+                  <DialogHeader>
+                    <DialogTitle className="text-foreground">모임 삭제</DialogTitle>
+                    <DialogDescription className="text-muted-foreground pt-2">
+                      정말로 이 모임을 삭제하시겠습니까? 삭제된 모임은 복구할 수 없습니다.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="flex gap-2 pt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="border-border hover:bg-muted flex-1"
+                    >
+                      아니오
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleDelete}
+                      className="bg-red-500 hover:bg-red-600 text-white flex-1"
+                    >
+                      예
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </>
           ) : (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "gap-1.5 h-8 px-2",
-                  liked ? "text-red-500 hover:text-red-500" : "text-muted-foreground hover:text-foreground"
-                )}
-                onClick={handleLike}
-              >
-                <Heart className={cn("size-4", liked && "fill-current")} />
-                <span className="text-xs">{likeCount}</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 h-8 px-2 text-muted-foreground hover:text-foreground"
-              >
-                <MessageCircle className="size-4" />
-                <span className="text-xs">{comments}</span>
-              </Button>
-            </>
+             <div className="flex items-center gap-1 text-muted-foreground bg-muted/30 px-2.5 py-1 rounded-lg">
+                <Users className="size-3.5" />
+                <span className="text-xs font-semibold">
+                   {participantCount}{maxParticipants ? `/${maxParticipants}` : ""}명
+                </span>
+             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -210,13 +241,15 @@ export function MeetingCard({
           <Button
             onClick={handleAction}
             variant={isJoined ? "outline" : "default"}
+            disabled={(isCompleted && !isJoined) || isScheduled}
             className={cn(
               "h-8 transition-colors",
-              isJoined ? "border-primary text-primary hover:bg-primary/10" : "bg-primary hover:bg-primary/90 text-primary-foreground"
+              isJoined ? "border-primary text-primary hover:bg-primary/10" : "bg-primary hover:bg-primary/90 text-primary-foreground",
+              ((isCompleted && !isJoined) || isScheduled) && "opacity-50 grayscale cursor-not-allowed"
             )}
             size="sm"
           >
-            {isJoined ? "참여 취소" : "참여하기"}
+            {isJoined ? "참여 취소" : isCompleted ? "모집 완료" : "참여하기"}
           </Button>
         </div>
       </div>

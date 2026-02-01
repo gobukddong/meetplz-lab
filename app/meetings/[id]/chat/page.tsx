@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { getMessages } from "@/app/actions/chat"
+import { getMessages, sendMessage } from "@/lib/actions/chat"
 import { ChatRoom } from "@/components/domain/meetings/chat-room"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"

@@ -12,14 +12,16 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { searchUsers, sendFriendRequest } from "@/app/actions/friends"
+import { searchUsers, sendFriendRequest } from "@/lib/actions/friends"
 import { UserPlus, Search, Loader2, Check, Clock } from "lucide-react"
 
 interface AddFriendDialogProps {
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function AddFriendDialog({ trigger }: AddFriendDialogProps) {
+export function AddFriendDialog({ trigger, open, onOpenChange }: AddFriendDialogProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -52,18 +54,17 @@ export function AddFriendDialog({ trigger }: AddFriendDialogProps) {
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <UserPlus className="size-4" />
-          <span>친구 추가</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && (
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>친구 찾기</DialogTitle>
           <DialogDescription>
-            이름이나 이메일로 친구를 검색해 보세요.
+            별명으로 친구를 검색해 보세요.
           </DialogDescription>
         </DialogHeader>
         
@@ -71,7 +72,7 @@ export function AddFriendDialog({ trigger }: AddFriendDialogProps) {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
-              placeholder="이름 또는 이메일..."
+              placeholder="친구 별명 입력..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9"
@@ -93,7 +94,6 @@ export function AddFriendDialog({ trigger }: AddFriendDialogProps) {
                   </Avatar>
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{user.name}</span>
-                    <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
                 </div>
                 

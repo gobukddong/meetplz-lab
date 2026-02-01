@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { sendMessage } from "@/app/actions/chat"
+import { sendMessage, getMessages } from "@/lib/actions/chat"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

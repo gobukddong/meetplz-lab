@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { MeetingCard } from "@/components/domain/meetings/meeting-card"
 import { CreatePost } from "@/components/domain/meetings/create-post"
-import { joinMeeting, leaveMeeting } from "@/app/actions/meetings"
+import { joinMeeting, leaveMeeting } from "@/lib/actions/meetings"
 import { useRouter } from "next/navigation"
 
 interface UserProfile {
@@ -31,13 +31,16 @@ const mapMeetingToUI = (m: any) => ({
   hostInitials: m.host?.name ? m.host.name.substring(0, 2) : "??",
   timePosted: new Date(m.created_at).toLocaleDateString(),
   status: m.status,
-  likes: 0, // Not in DB yet
-  comments: m.comments ? m.comments[0]?.count : 0,
   participantCount: m.participants ? m.participants[0]?.count : 0,
+  maxParticipants: m.max_participants,
+  recruitmentDeadline: m.recruitment_deadline,
+  endTime: m.meeting_end_at ? new Date(m.meeting_end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+  rawMeetingAt: m.meeting_at,
+  rawMeetingEndAt: m.meeting_end_at,
   isJoined: m.isJoined
 })
-
 export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
+  const router = useRouter()
   const [meetings, setMeetings] = useState<any[]>(initialMeetings.map(mapMeetingToUI))
 
   useEffect(() => {
@@ -52,6 +55,7 @@ export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
     
     try {
       await joinMeeting(meetingId)
+      router.push(`/meetings/${meetingId}/chat`)
     } catch (error) {
       // Revert on error
       setMeetings(prev => prev.map(m => 
@@ -89,8 +93,8 @@ export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
         <CreatePost user={user} />
       </div>
       
-      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0">
-        <div className="space-y-3 pb-4">
+      <div className="flex-1 overflow-y-auto no-scrollbar min-h-0 px-4 pt-4 pb-5">
+        <div className="space-y-10 pb-4">
           {meetings.map((meeting) => (
             <MeetingCard
               key={meeting.id}
@@ -105,8 +109,12 @@ export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
               hostInitials={meeting.hostInitials}
               timePosted={meeting.timePosted}
               status={meeting.status}
-              likes={meeting.likes}
-              comments={meeting.comments}
+              participantCount={meeting.participantCount}
+              maxParticipants={meeting.maxParticipants}
+              recruitmentDeadline={meeting.recruitmentDeadline}
+              endTime={meeting.endTime}
+              rawMeetingAt={meeting.rawMeetingAt}
+              rawMeetingEndAt={meeting.rawMeetingEndAt}
               isJoined={meeting.isJoined}
               isHost={user?.id === meeting.host_id}
               onJoin={handleJoin}
@@ -115,7 +123,7 @@ export function SocialFeed({ initialMeetings, user }: SocialFeedProps) {
           ))}
           {meetings.length === 0 && (
             <div className="text-center text-muted-foreground py-10">
-              No active meetings found. Be the first to create one!
+              아직 모집 중인 모임이 없어요...
             </div>
           )}
         </div>

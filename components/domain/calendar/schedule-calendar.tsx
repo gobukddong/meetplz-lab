@@ -27,6 +27,7 @@ interface ScheduleCalendarProps {
   month?: Date
   onSelect?: (date: Date | undefined) => void
   onMonthChange?: (month: Date) => void
+  headerActions?: React.ReactNode
   className?: string
 }
 
@@ -91,6 +92,7 @@ export function ScheduleCalendar({
   onSelect,
   month: currentMonth = new Date(),
   onMonthChange,
+  headerActions,
   className,
 }: ScheduleCalendarProps) {
   const defaultClassNames = getDefaultClassNames()
@@ -122,7 +124,7 @@ export function ScheduleCalendar({
   ], [])
 
   return (
-    <div className={cn("bg-card rounded-xl border border-border p-4 w-full flex flex-col gap-4 relative", className)}>
+    <div className={cn("bg-card rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.1)] p-4 w-full flex flex-col gap-4 relative", className)}>
       {/* Header Container */}
       <div className="flex items-center justify-between px-1 relative">
         <div className="flex items-center gap-2">
@@ -164,18 +166,17 @@ export function ScheduleCalendar({
           </DropdownMenu>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+            {headerActions}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-8 px-3 text-xs font-medium gap-1.5 border-border bg-transparent text-foreground hover:bg-accent"
+              className="h-8 px-3 text-xs font-semibold gap-1.5 bg-background text-foreground hover:bg-muted hover:text-primary shadow-[0_2px_10px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all rounded-xl border-none"
               onClick={handleTodayClick}
             >
               <CalendarIcon className="size-3.5" />
               오늘
             </Button>
-            {/* Space for DayPicker arrows */}
-            <div className="w-16 h-8" />
         </div>
       </div>
 
@@ -186,6 +187,7 @@ export function ScheduleCalendar({
         month={currentMonth}
         onMonthChange={onMonthChange}
         showOutsideDays
+        fixedWeeks
         locale={ko}
         classNames={{
           root: cn("w-full", defaultClassNames.root),
@@ -197,12 +199,12 @@ export function ScheduleCalendar({
           ),
           button_previous: cn(
             buttonVariants({ variant: "ghost" }),
-            "size-8 p-0 text-muted-foreground hover:text-foreground",
+            "size-8 p-0 text-foreground hover:text-foreground opacity-50 hover:opacity-100",
             defaultClassNames.button_previous
           ),
           button_next: cn(
             buttonVariants({ variant: "ghost" }),
-            "size-8 p-0 text-muted-foreground hover:text-foreground",
+            "size-8 p-0 text-foreground hover:text-foreground opacity-50 hover:opacity-100",
             defaultClassNames.button_next
           ),
           month_caption: "hidden", // Hide original caption label
@@ -218,12 +220,12 @@ export function ScheduleCalendar({
             defaultClassNames.day
           ),
           today: cn(
-            "bg-accent/50 text-accent-foreground font-bold rounded-lg",
+            "bg-accent/50 text-accent-foreground font-bold rounded-xl outline-none border-none",
             defaultClassNames.today
           ),
           selected: "bg-primary text-primary-foreground rounded-lg",
           outside: cn(
-            "text-muted-foreground/30",
+            "text-muted-foreground opacity-[0.2]",
             defaultClassNames.outside
           ),
           disabled: cn(

@@ -6,7 +6,6 @@ import { CalendarCheck, Menu } from "lucide-react"
 import { ThemeToggle } from "@/components/domain/auth/theme-toggle"
 import { ProfileDropdown } from "@/components/domain/auth/profile-dropdown"
 import { BriefingButton } from "@/components/domain/ai-briefing/briefing-button"
-import { AddFriendDialog } from "@/components/domain/friends/add-friend-dialog"
 import { FriendDrawer } from "@/components/domain/friends/friend-drawer"
 
 interface HeaderProps {
@@ -42,7 +41,6 @@ export function Header({ user }: HeaderProps) {
 
             <div className="flex items-center gap-2">
               {/* Right side: AI Briefing, Theme Toggle, Profile */}
-              <AddFriendDialog />
               <BriefingButton />
               <ThemeToggle />
               <ProfileDropdown user={user} />
@@ -52,7 +50,12 @@ export function Header({ user }: HeaderProps) {
       </header>
 
       {/* Friend Drawer - Moved outside the blurred header wrapper */}
-      <FriendDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <FriendDrawer 
+        user={user}
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+        onOpen={() => setIsDrawerOpen(true)}
+      />
     </>
   )
 }

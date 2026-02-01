@@ -7,19 +7,20 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Users, User, LoaderCircle, Globe, Lock, Clock } from "lucide-react"
+import { Pencil, Users, User, Globe, Lock, Clock } from "lucide-react"
 import { DatePicker } from "@/components/common/date-picker"
 import { TimePicker } from "@/components/common/time-picker"
 import { format } from "date-fns"
-import { ko } from "date-fns/locale"
+import { Task } from "./task-list"
 
-export interface AddTaskDialogProps {
-  selectedDate: Date | undefined
-  onAddTask: (task: {
+interface EditTaskDialogProps {
+  task: Task & { date: Date; time?: string }
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onEditTask: (id: string, updatedTask: {
     title: string
     type: "meeting" | "personal"
     isPublic: boolean
@@ -28,23 +29,28 @@ export interface AddTaskDialogProps {
   }) => void
 }
 
-export function AddTaskDialog({ selectedDate, onAddTask }: AddTaskDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [title, setTitle] = useState("")
-  const [type, setType] = useState<"meeting" | "personal">("meeting")
-  const [isPublic, setIsPublic] = useState(true)
-  const [internalDate, setInternalDate] = useState<Date | undefined>(selectedDate)
-  const [time, setTime] = useState("19:00")
-  // Sync internal date when prop changes (e.g. user clicks another date on the main calendar)
+export function EditTaskDialog({ task, open, onOpenChange, onEditTask }: EditTaskDialogProps) {
+  const [title, setTitle] = useState(task.title)
+  const [type, setType] = useState<"meeting" | "personal">(task.type)
+  const [isPublic, setIsPublic] = useState(task.isPublic)
+  const [internalDate, setInternalDate] = useState<Date>(task.date)
+  const [time, setTime] = useState(task.time || "19:00")
+
   useEffect(() => {
-    setInternalDate(selectedDate)
-  }, [selectedDate])
+    if (open) {
+      setTitle(task.title)
+      setType(task.type)
+      setIsPublic(task.isPublic)
+      setInternalDate(task.date)
+      setTime(task.time || "19:00")
+    }
+  }, [open, task])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !internalDate) return
     
-    onAddTask({
+    onEditTask(task.id, {
       title: title.trim(),
       type,
       isPublic,
@@ -52,33 +58,20 @@ export function AddTaskDialog({ selectedDate, onAddTask }: AddTaskDialogProps) {
       time,
     })
     
-    setTitle("")
-    setType("meeting")
-    setIsPublic(true)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1.5 h-8 px-3 text-xs font-semibold bg-background text-foreground hover:bg-muted hover:text-primary shadow-[0_2px_10px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-all rounded-xl border-none"
-        >
-          <Plus className="size-3.5" />
-          <span>일정 추가</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px] bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-foreground">일정 추가</DialogTitle>
+          <DialogTitle className="text-foreground">일정 수정</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm text-foreground">일정 제목</Label>
+            <Label htmlFor="edit-title" className="text-sm text-foreground">일정 제목</Label>
             <Input
-              id="title"
+              id="edit-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="일정 제목을 입력해주세요..."
@@ -141,7 +134,7 @@ export function AddTaskDialog({ selectedDate, onAddTask }: AddTaskDialogProps) {
           <div className="space-y-2">
             <Label className="text-sm text-foreground">날짜</Label>
             <DatePicker 
-              date={internalDate ? format(internalDate, "yyyy-MM-dd") : undefined} 
+              date={format(internalDate, "yyyy-MM-dd")} 
               onChange={(dateStr) => {
                 const [y, m, d] = dateStr.split("-").map(Number)
                 setInternalDate(new Date(y, m - 1, d))
@@ -156,19 +149,20 @@ export function AddTaskDialog({ selectedDate, onAddTask }: AddTaskDialogProps) {
               onChange={setTime}
             />
           </div>
+
           <div className="flex gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               className="flex-1 border-border bg-transparent"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
             >
               취소
             </Button>
             <Button
               type="submit"
               className="flex-1 bg-primary hover:bg-primary/90"
-              disabled={!title.trim() || !internalDate}
+              disabled={!title.trim()}
             >
               확인
             </Button>

@@ -90,10 +90,10 @@ export function BriefingDialog({ open, onOpenChange }: BriefingDialogProps) {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <Sparkles className="size-4" />
             </div>
-            <DialogTitle className="text-xl">AI Briefing</DialogTitle>
+            <DialogTitle className="text-xl">AI 브리핑</DialogTitle>
           </div>
           <DialogDescription>
-            오늘의 일정과 할 일을 요약해 드립니다. 엔진을 선택해 보세요.
+            오늘의 일정을 요약해 드립니다.
           </DialogDescription>
         </DialogHeader>
 

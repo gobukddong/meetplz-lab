@@ -20,7 +20,8 @@ export const metadata: Metadata = {
   description: "모임과 할 일을 하나의 캘린더에서 관리하는 생산성 대시보드",
 };
 
-import { getUserProfile } from "@/app/actions/user";
+import { PresenceProvider } from "@/components/providers/presence-provider";
+import { getUserProfile } from "@/lib/actions/user";
 
 export default async function RootLayout({
   children,
@@ -30,9 +31,9 @@ export default async function RootLayout({
   const user = await getUserProfile();
 
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang="ko" className="no-scrollbar" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased no-scrollbar`}
       >
         <ThemeProvider
           attribute="class"
@@ -40,11 +41,13 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex flex-col min-h-screen">
-            <Header user={user} />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <PresenceProvider user={user}>
+            <div className="flex flex-col min-h-screen">
+              <Header user={user} />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+          </PresenceProvider>
         </ThemeProvider>
       </body>
     </html>
